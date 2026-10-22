@@ -11,6 +11,7 @@ export const CSS_SCALE = 1000;
 export class ScreenPanel {
   readonly object: CSS3DObject;
   private readonly iframe: HTMLIFrameElement;
+  private readonly cover: HTMLDivElement;
   private loaded = false;
   private wantsFocus = false;
 
@@ -25,14 +26,14 @@ export class ScreenPanel {
     this.iframe.title = game.title;
     this.iframe.allow = 'autoplay; fullscreen; gamepad';
 
-    const cover = document.createElement('div');
-    cover.className = 'screen-cover';
-    cover.innerHTML = `<b></b><span>INSERT COIN</span>`;
-    cover.querySelector('b')!.textContent = game.title;
+    this.cover = document.createElement('div');
+    this.cover.className = 'screen-cover';
+    this.cover.innerHTML = `<b></b><span>INSERT COIN</span>`;
+    this.cover.querySelector('b')!.textContent = game.title;
     // Ignores the synthetic about:blank load fired before src is set.
     this.iframe.addEventListener('load', () => {
       if (!this.loaded) return;
-      cover.classList.add('hidden');
+      this.cover.classList.add('hidden');
       // Only reachable when the game is same-origin; cross-origin keydown can't be observed.
       try {
         this.iframe.contentWindow?.addEventListener('keydown', (ev) => {
@@ -44,7 +45,7 @@ export class ScreenPanel {
       if (this.wantsFocus) this.focus();
     });
 
-    el.append(this.iframe, cover);
+    el.append(this.iframe, this.cover);
     this.object = new CSS3DObject(el);
     this.object.position.copy(frame.center).multiplyScalar(CSS_SCALE);
     this.object.quaternion.setFromRotationMatrix(new Matrix4().makeBasis(frame.right, frame.up, frame.normal));
@@ -56,6 +57,15 @@ export class ScreenPanel {
     if (this.loaded) return;
     this.loaded = true;
     this.iframe.src = this.game.url;
+  }
+
+  unload(): void {
+    if (!this.loaded) return;
+    this.loaded = false;
+    this.wantsFocus = false;
+    this.iframe.blur();
+    this.iframe.src = 'about:blank';
+    this.cover.classList.remove('hidden');
   }
 
   setInteractive(on: boolean): void {
