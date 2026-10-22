@@ -54,8 +54,9 @@ const hintEl = document.getElementById('hint')!;
 const gameTitleEl = document.getElementById('game-title')!;
 const backBtn = document.getElementById('back') as HTMLButtonElement;
 
+const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
 const renderer = new WebGLRenderer({ antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isCoarsePointer ? 1.25 : 2));
 renderer.setClearColor(0x000000, 0);
 renderer.toneMapping = ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true;
@@ -79,7 +80,8 @@ const sun = new DirectionalLight(0xffe8ff, 3.5);
 sun.position.set(-1.5, 6, -5.5);
 sun.target.position.set(0, 0, -1);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+const shadowResolution = isCoarsePointer ? 1024 : 2048;
+sun.shadow.mapSize.set(shadowResolution, shadowResolution);
 sun.shadow.camera.left = -6;
 sun.shadow.camera.right = 6;
 sun.shadow.camera.top = 6;
@@ -225,6 +227,9 @@ function enterGame(entry: Entry): void {
   if (mode !== 'hall' || transition) return;
   mode = 'zoom';
   active = entry;
+  for (const other of entries) {
+    if (other !== entry) other.panel.unload();
+  }
   entry.panel.load();
   renderer.domElement.style.pointerEvents = 'none';
   renderer.domElement.style.cursor = '';
@@ -242,6 +247,7 @@ function enterGame(entry: Entry): void {
 function exitGame(): void {
   if (mode !== 'zoom' || !active) return;
   active.panel.setInteractive(false);
+  const exitingPanel = active.panel;
   active = null;
   mode = 'hall';
   gameTitleEl.textContent = '';
@@ -253,6 +259,7 @@ function exitGame(): void {
   window.focus();
   startTransition(walkPos.clone(), hallQuat(yaw), () => {
     renderer.domElement.style.pointerEvents = '';
+    exitingPanel.unload();
   });
 }
 
