@@ -15,9 +15,6 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { Game } from './games';
 
 const TARGET_HEIGHT = 1.9;
-const IS_COARSE_POINTER = window.matchMedia('(pointer: coarse)').matches;
-const TEXTURE_SCALE = IS_COARSE_POINTER ? 0.5 : 1;
-const MOBILE_TEXTURE_MAX_SIZE = 1024;
 
 export interface ScreenFrame {
   center: Vector3;
@@ -26,54 +23,6 @@ export interface ScreenFrame {
   normal: Vector3;
   width: number;
   height: number;
-}
-
-function reduceMobileMaterialCost(model: Group): void {
-  const reducedImages = new WeakMap<object, HTMLCanvasElement>();
-  const processedMaterials = new Set<MeshStandardMaterial>();
-
-  model.traverse((object) => {
-    const mesh = object as Mesh;
-    if (!mesh.isMesh) return;
-
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    for (const material of materials) {
-      if (!(material instanceof MeshStandardMaterial) || processedMaterials.has(material)) continue;
-      processedMaterials.add(material);
-      material.normalMap = null;
-      material.metalnessMap = null;
-      material.roughnessMap = null;
-      material.aoMap = null;
-
-      if (material.name !== 'Body') {
-        if (material.map) reduceTextureSize(material.map, reducedImages);
-        if (material.emissiveMap) reduceTextureSize(material.emissiveMap, reducedImages);
-      }
-      material.needsUpdate = true;
-    }
-  });
-}
-
-function reduceTextureSize(texture: Texture, reducedImages: WeakMap<object, HTMLCanvasElement>): void {
-  const image = texture.image as CanvasImageSource & { width: number; height: number };
-  const largestDimension = Math.max(image.width, image.height);
-  if (largestDimension <= MOBILE_TEXTURE_MAX_SIZE) return;
-
-  let canvas = reducedImages.get(image as object);
-  if (!canvas) {
-    const scale = MOBILE_TEXTURE_MAX_SIZE / largestDimension;
-    canvas = document.createElement('canvas');
-    canvas.width = Math.round(image.width * scale);
-    canvas.height = Math.round(image.height * scale);
-    const context = canvas.getContext('2d');
-    if (!context) return;
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    reducedImages.set(image as object, canvas);
-  }
-
-  texture.image = canvas;
-  texture.anisotropy = Math.min(texture.anisotropy, 2);
-  texture.needsUpdate = true;
 }
 
 export async function loadCabinetModel(url: string): Promise<Group> {
@@ -92,7 +41,6 @@ export async function loadCabinetModel(url: string): Promise<Group> {
   const screen = model.getObjectByName('Screen_Screen_0') as Mesh;
   screen.material = hole;
   model.getObjectByName('Screen_Glass_0')!.visible = false;
-  if (IS_COARSE_POINTER) reduceMobileMaterialCost(model);
 
   const wrapper = new Group();
   wrapper.add(model);
@@ -129,34 +77,29 @@ function withMarquee(mat: MeshStandardMaterial, game: Game): MeshStandardMateria
 function paintMarquee(source: Texture, game: Game, emissive: boolean): CanvasTexture {
   const img = source.image as CanvasImageSource & { width: number; height: number };
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(img.width * TEXTURE_SCALE);
-  canvas.height = Math.round(img.height * TEXTURE_SCALE);
+  canvas.width = img.width;
+  canvas.height = img.height;
   const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0);
 
   const { x, y, w, h } = MARQUEE;
-  const scale = canvas.width / img.width;
-  const scaledX = x * scale;
-  const scaledY = y * scale;
-  const scaledW = w * scale;
-  const scaledH = h * scale;
   const css = `#${game.color.toString(16).padStart(6, '0')}`;
   ctx.fillStyle = emissive ? '#000' : '#0b0614';
-  ctx.fillRect(scaledX, scaledY, scaledW, scaledH);
+  ctx.fillRect(x, y, w, h);
 
   // The UVs on this panel are vertically mirrored, so the text is drawn flipped to read correctly.
   ctx.save();
-  ctx.translate(scaledX + scaledW / 2, scaledY + scaledH / 2);
+  ctx.translate(x + w / 2, y + h / 2);
   ctx.scale(1, -1);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `bold ${64 * scale}px "Courier New", monospace`;
+  ctx.font = 'bold 64px "Courier New", monospace';
   ctx.fillStyle = css;
   if (emissive) {
     ctx.shadowColor = css;
-    ctx.shadowBlur = 12 * scale;
+    ctx.shadowBlur = 12;
   }
-  ctx.fillText(game.title.toUpperCase(), 0, 4 * scale, (w - 30) * scale);
+  ctx.fillText(game.title.toUpperCase(), 0, 4, w - 30);
   ctx.restore();
 
   const texture = new CanvasTexture(canvas);
