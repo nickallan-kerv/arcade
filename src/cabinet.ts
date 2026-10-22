@@ -15,7 +15,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { Game } from './games';
 
 const TARGET_HEIGHT = 1.9;
-const TEXTURE_SCALE = window.matchMedia('(pointer: coarse)').matches ? 0.5 : 1;
+const IS_COARSE_POINTER = window.matchMedia('(pointer: coarse)').matches;
+const TEXTURE_SCALE = IS_COARSE_POINTER ? 0.5 : 1;
+const MOBILE_TEXTURE_MAX_SIZE = 1024;
 
 export interface ScreenFrame {
   center: Vector3;
@@ -24,6 +26,54 @@ export interface ScreenFrame {
   normal: Vector3;
   width: number;
   height: number;
+}
+
+function reduceMobileMaterialCost(model: Group): void {
+  const reducedImages = new WeakMap<object, HTMLCanvasElement>();
+  const processedMaterials = new Set<MeshStandardMaterial>();
+
+  model.traverse((object) => {
+    const mesh = object as Mesh;
+    if (!mesh.isMesh) return;
+
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const material of materials) {
+      if (!(material instanceof MeshStandardMaterial) || processedMaterials.has(material)) continue;
+      processedMaterials.add(material);
+      material.normalMap = null;
+      material.metalnessMap = null;
+      material.roughnessMap = null;
+      material.aoMap = null;
+
+      if (material.name !== 'Body') {
+        if (material.map) reduceTextureSize(material.map, reducedImages);
+        if (material.emissiveMap) reduceTextureSize(material.emissiveMap, reducedImages);
+      }
+      material.needsUpdate = true;
+    }
+  });
+}
+
+function reduceTextureSize(texture: Texture, reducedImages: WeakMap<object, HTMLCanvasElement>): void {
+  const image = texture.image as CanvasImageSource & { width: number; height: number };
+  const largestDimension = Math.max(image.width, image.height);
+  if (largestDimension <= MOBILE_TEXTURE_MAX_SIZE) return;
+
+  let canvas = reducedImages.get(image as object);
+  if (!canvas) {
+    const scale = MOBILE_TEXTURE_MAX_SIZE / largestDimension;
+    canvas = document.createElement('canvas');
+    canvas.width = Math.round(image.width * scale);
+    canvas.height = Math.round(image.height * scale);
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    reducedImages.set(image as object, canvas);
+  }
+
+  texture.image = canvas;
+  texture.anisotropy = Math.min(texture.anisotropy, 2);
+  texture.needsUpdate = true;
 }
 
 export async function loadCabinetModel(url: string): Promise<Group> {
@@ -42,6 +92,7 @@ export async function loadCabinetModel(url: string): Promise<Group> {
   const screen = model.getObjectByName('Screen_Screen_0') as Mesh;
   screen.material = hole;
   model.getObjectByName('Screen_Glass_0')!.visible = false;
+  if (IS_COARSE_POINTER) reduceMobileMaterialCost(model);
 
   const wrapper = new Group();
   wrapper.add(model);
