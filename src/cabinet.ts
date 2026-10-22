@@ -15,6 +15,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { Game } from './games';
 
 const TARGET_HEIGHT = 1.9;
+const TEXTURE_SCALE = window.matchMedia('(pointer: coarse)').matches ? 0.5 : 1;
 
 export interface ScreenFrame {
   center: Vector3;
@@ -77,29 +78,34 @@ function withMarquee(mat: MeshStandardMaterial, game: Game): MeshStandardMateria
 function paintMarquee(source: Texture, game: Game, emissive: boolean): CanvasTexture {
   const img = source.image as CanvasImageSource & { width: number; height: number };
   const canvas = document.createElement('canvas');
-  canvas.width = img.width;
-  canvas.height = img.height;
+  canvas.width = Math.round(img.width * TEXTURE_SCALE);
+  canvas.height = Math.round(img.height * TEXTURE_SCALE);
   const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(img, 0, 0);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
   const { x, y, w, h } = MARQUEE;
+  const scale = canvas.width / img.width;
+  const scaledX = x * scale;
+  const scaledY = y * scale;
+  const scaledW = w * scale;
+  const scaledH = h * scale;
   const css = `#${game.color.toString(16).padStart(6, '0')}`;
   ctx.fillStyle = emissive ? '#000' : '#0b0614';
-  ctx.fillRect(x, y, w, h);
+  ctx.fillRect(scaledX, scaledY, scaledW, scaledH);
 
   // The UVs on this panel are vertically mirrored, so the text is drawn flipped to read correctly.
   ctx.save();
-  ctx.translate(x + w / 2, y + h / 2);
+  ctx.translate(scaledX + scaledW / 2, scaledY + scaledH / 2);
   ctx.scale(1, -1);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = 'bold 64px "Courier New", monospace';
+  ctx.font = `bold ${64 * scale}px "Courier New", monospace`;
   ctx.fillStyle = css;
   if (emissive) {
     ctx.shadowColor = css;
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 12 * scale;
   }
-  ctx.fillText(game.title.toUpperCase(), 0, 4, w - 30);
+  ctx.fillText(game.title.toUpperCase(), 0, 4 * scale, (w - 30) * scale);
   ctx.restore();
 
   const texture = new CanvasTexture(canvas);
