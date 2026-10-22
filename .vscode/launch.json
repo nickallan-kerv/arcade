@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Arcade: dev (editor-browser)",
+      "type": "editor-browser",
+      "request": "launch",
+      "url": "http://localhost:5173/ArcadeCabinet/",
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "vite: dev server"
+    },
+    {
+      "name": "Arcade: dev (Edge)",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://localhost:5173/ArcadeCabinet/",
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "vite: dev server"
+    },
+    {
+      "name": "Arcade: dev (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173/ArcadeCabinet/",
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "vite: dev server"
+    }
+  ]
+}
