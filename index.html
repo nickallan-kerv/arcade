@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Arcade</title>
+  </head>
+  <body>
+    <div id="stage"></div>
+
+    <div id="hud">
+      <header id="title">
+        <h1>AI ARCADE</h1>
+        <p id="hint">Arrow keys or WASD to walk, drag to look. Walk up to a screen or click a cabinet to play. Home resets the view.</p>
+      </header>
+      <div id="game-title"></div>
+      <button id="back" type="button" hidden>Back to the arcade (Esc)</button>
+      <footer id="credit">
+        <a href="https://skfb.ly/onCzo" target="_blank" rel="noopener">"Arcade Cabinet"</a>
+        by Red Fox / nokillnando is licensed under
+        <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>
+      </footer>
+    </div>
+
+    <div id="loading">Loading arcade...</div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
